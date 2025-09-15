@@ -354,7 +354,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             },
         },
         {
-            $lookup: {   // left outer join and get all subscribers for this channel
+            $lookup: {
+                // left outer join and get all subscribers for this channel
                 from: "subscriptions",
                 localField: "_id",
                 foreignField: "channel",
@@ -362,7 +363,8 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             },
         },
         {
-            $lookup: { // get all channels to which this user has subscribed
+            $lookup: {
+                // get all channels to which this user has subscribed
                 from: "subscriptions",
                 localField: "_id",
                 foreignField: "subscriber",
@@ -414,6 +416,61 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         );
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                // we can not use req.user._id directly here because mongoDB stores _id in ObjectId format and req.user._id is string
+                _id: new mongoose.Types.ObjectId(req.user._id),
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        funlName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    },
+                                },
+                            ],
+                            $addFields: {
+                                watchHistory: {
+                                    $frist: "$owner"
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+    if (!user || user.length === 0) {
+        throw new ApiError(404, "User not found");
+    }
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].watchHistory,
+                "Watch history fetched successfully"
+            )
+        );
+});
+
 export {
     registerUser,
     userlogin,
@@ -424,5 +481,5 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
 };
