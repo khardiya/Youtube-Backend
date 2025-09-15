@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import { use } from "react";
 
 const genrateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -287,7 +288,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
 
     //TODO: delete old image - assignment
-    
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
@@ -340,6 +340,80 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Cover image updated successfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "username not found");
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase(),
+            },
+        },
+        {
+            $lookup: {   // left outer join and get all subscribers for this channel
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $lookup: { // get all channels to which this user has subscribed
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscriberedTo",
+            },
+        },
+        {
+            $addFields: {
+                subsrcberCount: {
+                    $size: "$subscribers",
+                },
+                channelsSubsrcberedCount: {
+                    $size: "$subscriberedTo",
+                },
+                isSubsrcbed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        {
+            $project: {
+                username: 1,
+                fullName: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                subsrcberCount: 1,
+                channelsSubsrcberedCount: 1,
+                isSubsrcbed: 1,
+            },
+        },
+    ]);
+    if (!channel || channel.length === 0) {
+        throw new ApiError(404, "Channel not found");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                channel[0],
+                "Channel details fetched successfully"
+            )
+        );
+});
+
 export {
     registerUser,
     userlogin,
@@ -350,4 +424,5 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
+    getUserChannelProfile
 };
