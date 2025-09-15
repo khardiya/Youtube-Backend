@@ -4,7 +4,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
-import { use } from "react";
+import mongoose from "mongoose";
 
 const genrateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -168,7 +168,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     // return response
     await User.findByIdAndUpdate(
         req.user._id,
-        { $set: { refreshToken: undefined } },
+        { $unset: { refreshToken: 1 } }, // 1 means remove this field
         { new: true }
     );
 
@@ -193,7 +193,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     try {
         const decodedToken = jwt.verify(
             incomingRefreshToken,
-            process.env.JWT_REFRESH_SECRET_KEY
+            process.env.REFRESH_TOKEN_SECRET
         );
         if (!decodedToken || !decodedToken._id) {
             throw new ApiError(401, "Unauthorization access");
@@ -252,7 +252,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
-        .json(200, req.user, "current user fetch successfully ");
+        .json(new ApiResponse(200, req.user, "User fetched successfully"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -420,7 +420,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
             $match: {
-                // we can not use req.user._id directly here because mongoDB stores _id in ObjectId format and req.user._id is string
                 _id: new mongoose.Types.ObjectId(req.user._id),
             },
         },
@@ -440,16 +439,18 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                             pipeline: [
                                 {
                                     $project: {
-                                        funlName: 1,
+                                        fullName: 1,
                                         username: 1,
                                         avatar: 1,
                                     },
                                 },
                             ],
-                            $addFields: {
-                                watchHistory: {
-                                    $frist: "$owner"
-                                },
+                        },
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner",
                             },
                         },
                     },
@@ -457,9 +458,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
             },
         },
     ]);
-    if (!user || user.length === 0) {
-        throw new ApiError(404, "User not found");
-    }
+
     return res
         .status(200)
         .json(
@@ -482,5 +481,5 @@ export {
     updateUserAvatar,
     updateUserCoverImage,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
 };
