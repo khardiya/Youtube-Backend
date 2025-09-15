@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import {User} from "../models/user.model.js";
 
 export const verifyJWT = asyncHandler(
-    // if any parameter not use you and replace it by _
+    // if any parameter not use you can replace it by _
     async (req, _, next) => {
         try {
             const token =
