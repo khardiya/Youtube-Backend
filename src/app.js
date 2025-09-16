@@ -17,12 +17,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-// user routes import
+//  routes import
 import userRouter from "./routes/user.routes.js";
+import tweetRouter from "./routes/tweet.routes.js";
 
 // router delclaration
 
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/tweet", tweetRouter);
 
 // example route
 // http://localhost:8000/api/v1/user/register

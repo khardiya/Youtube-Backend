@@ -50,7 +50,7 @@ const updateTweet = asyncHandler(async (req, res) => {
     // check if the user is the owner of the tweet
     if (tweet.owner.toString() !== req.user?._id.toString()) {
         throw new ApiError(403, "You are not authorized to update this tweet");
-    }
+    } 
     const { content } = req.body;
     if (!content || content.trim().length === 0) {
         throw new ApiError(400, "Content is required");
@@ -76,7 +76,7 @@ const deleteTweet = asyncHandler(async (req, res) => {
     if (tweet.owner.toString() !== req.user?._id.toString()) {
         throw new ApiError(403, "You are not authorized to delete this tweet");
     }
-    await tweet.remove();
+    await tweet.deleteOne();
     res.status(200).json(
         new ApiResponse(200, null, "Tweet deleted successfully")
     );
