@@ -8,7 +8,7 @@ const allowedOrigins = process.env.CLIENT_URL || "*";
 app.use(
     cors({
         origin: allowedOrigins,
-        methods: ["GET", "POST", "PUT", "DELETE"],
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         credentials: true,
     })
 );
