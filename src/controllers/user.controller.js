@@ -73,16 +73,17 @@ const registerUser = asyncHandler(async (req, res) => {
         coverImageLocalPath = req.files.coverImage[0].path;
     }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    // Upload to Cloudinary
+    const uploadedAvatar = await uploadOnCloudinary(avatarLocalPath);
+    const uploadedCoverImage = await uploadOnCloudinary(coverImageLocalPath);
 
-    if (!avatar) {
+    if (!uploadedAvatar) {
         throw new ApiError(400, "Avatar could not be uploaded");
     }
     const user = await User.create({
         fullName,
-        avatar: avatar.url,
-        coverImage: coverImage?.url || "",
+        avatar: uploadedAvatar.secure_url,
+        coverImage: uploadedCoverImage?.secure_url || "",
         email,
         password,
         username: username.toLowerCase(),
