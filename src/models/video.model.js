@@ -1,5 +1,10 @@
 import mongoose, { Schema } from "mongoose";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+import { Comment } from "./comment.model.js";
+import { Like } from "./like.model.js";
+import { PlayList } from "./playlist.model.js";
+
+
 
 const videoSchema = new Schema(
     {
@@ -40,6 +45,21 @@ const videoSchema = new Schema(
         timestamps: true,
     }
 );
+
+videoSchema.pre("deleteOne", { document: true, query: false }, async function(next) {
+    try {
+        await this.model("Comment").deleteMany({ video: this._id });
+        await this.model("Like").deleteMany({ video: this._id });
+        await this.model("PlayList").updateMany(
+            { videos: this._id },
+            { $pull: { videos: this._id } }
+        );
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 videoSchema.plugin(mongooseAggregatePaginate);
 
