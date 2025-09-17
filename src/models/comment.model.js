@@ -15,10 +15,10 @@ const commentSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        tweet: {
+        tweet:{
             type: mongoose.Schema.Types.ObjectId,
             ref: "Tweet",
-        },
+        }
     },
     {
         timestamps: true,
