@@ -14,10 +14,6 @@ const commentSchema = new mongoose.Schema(
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-        },
-        tweet:{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Tweet",
         }
     },
     {
