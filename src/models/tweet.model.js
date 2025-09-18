@@ -14,14 +14,13 @@ const tweetSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-tweetSchema.pre("deleteOne", { document: true, query: false }, async function (next) {
+tweetSchema.post("deleteOne", { document: true, query: false }, async function (doc, next) {
     try {
-        const tweetId = this._id;
-        await mongoose.model("Comment").deleteMany({ tweet: tweetId });
-        await mongoose.model("Like").deleteMany({ tweet: tweetId });
+        await mongoose.model("Like").deleteMany({ tweet: doc._id });
         next();
     } catch (error) {
-        throw new Error(error);
+        next(error);
     }
 });
+
 export const Tweet = mongoose.model("Tweet", tweetSchema);
