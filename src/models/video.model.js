@@ -46,19 +46,20 @@ const videoSchema = new Schema(
     }
 );
 
-videoSchema.pre("deleteOne", { document: true, query: false }, async function(next) {
+videoSchema.post("deleteOne", { document: true, query: false }, async function(doc, next) {
     try {
-        await this.model("Comment").deleteMany({ video: this._id });
-        await this.model("Like").deleteMany({ video: this._id });
+        await this.model("Comment").deleteMany({ video: doc._id });
+        await this.model("Like").deleteMany({ video: doc._id });
         await this.model("PlayList").updateMany(
-            { videos: this._id },
-            { $pull: { videos: this._id } }
+            { videos: doc._id },
+            { $pull: { videos: doc._id } }
         );
         next();
     } catch (error) {
         next(error);
     }
 });
+
 
 
 videoSchema.plugin(mongooseAggregatePaginate);
