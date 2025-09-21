@@ -130,7 +130,7 @@ const userlogin = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found");
     }
 
-    const isPasswordMatched = await user.comparePassword(password);
+    const isPasswordMatched = await user.isPasswordCorrect(password);
     if (!isPasswordMatched) {
         throw new ApiError(401, "Invalid credentials");
     }
