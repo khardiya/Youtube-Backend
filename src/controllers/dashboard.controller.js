@@ -59,7 +59,7 @@ const getChannelVideos = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
-                from: "user",
+                from: "users",
                 localField: "owner",
                 foreignField: "_id",
                 as: "owner",
@@ -77,7 +77,7 @@ const getChannelVideos = asyncHandler(async (req, res) => {
         { $unwind: "$owner" },
     ]);
     if (!videos || videos.length === 0) {
-        throw new ApiError(500, "Something went wrong while fetching videos");
+        throw new ApiError(404, "No videos found for this channel");
     }
     res.status(200).json(
         new ApiResponse(200, videos, "Videos fetched successfully")
