@@ -110,16 +110,16 @@ public/
 
 ### Like
 
-- `POST /api/v1/like/toggle/v/:videoId` — Like/unlike video
-- `POST /api/v1/like/toggle/c/:commentId` — Like/unlike comment
-- `POST /api/v1/like/toggle/t/:tweetId` — Like/unlike tweet
-- `GET /api/v1/like/videos` — Get liked videos
+- `POST /api/v1/likes/toggle/v/:videoId` — Like/unlike video
+- `POST /api/v1/likes/toggle/c/:commentId` — Like/unlike comment
+- `POST /api/v1/likes/toggle/t/:tweetId` — Like/unlike tweet
+- `GET /api/v1/likes/videos` — Get liked videos
 
 ### Subscription
 
-- `GET /api/v1/subscription/c/:channelId` — Get channel subscribers
-- `POST /api/v1/subscription/c/:channelId` — Subscribe/unsubscribe to channel
-- `GET /api/v1/subscription/u/:subscriberId` — Get channels user has subscribed to
+- `POST /api/v1/subscription/toggle/:channelId` — Subscribe/unsubscribe to a channel
+- `GET /api/v1/subscription/subscribers/:channelId` — Get all subscribers of a channel
+- `GET /api/v1/subscription/user/:userId` — Get all channels a user has subscribed to
 
 ### Dashboard
 
@@ -136,15 +136,15 @@ public/
 
 1. **Clone the repository**
 2. **Install dependencies**
-   ```
-   npm install
-   ```
+    ```
+    npm install
+    ```
 3. **Configure environment variables**
-   - Create a `.env` file with your MongoDB URI, JWT secrets, Cloudinary keys, etc.
+    - Create a `.env` file with your MongoDB URI, JWT secrets, Cloudinary keys, etc.
 4. **Run the server**
-   ```
-   npm run dev
-   ```
+    ```
+    npm run dev
+    ```
 5. **API available at:**  
    `http://localhost:8000/api/v1/`
 
@@ -153,6 +153,7 @@ public/
 ## Environment Variables
 
 Example `.env` file:
+
 ```
 PORT=8000
 MONGO_URL=your_mongodb_connection_string
