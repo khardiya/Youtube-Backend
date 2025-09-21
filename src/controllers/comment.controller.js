@@ -90,7 +90,7 @@ const updateComment = asyncHandler(async (req, res) => {
     if (!comment) {
         throw new ApiError(404, "Comment not found");
     }
-    const { content } = req.body;
+    const { content } = req.body || {};
     if (!content) {
         throw new ApiError(400, "Content is required");
     }
