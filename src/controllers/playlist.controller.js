@@ -42,9 +42,13 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
             path: "videos",
             select: "thumbnail title duration views",
         });
-
-    if (!playlists || playlists.length === 0) {
+    if (!playlists) {
         throw new ApiError(404, "No playlists found for this user");
+    }
+    if (playlists.length === 0) {
+        return res
+            .status(200)
+            .json(new ApiResponse(200, "No playlists found for this user", []));
     }
 
     res.status(200).json(
@@ -146,9 +150,9 @@ const deletePlaylist = asyncHandler(async (req, res) => {
             "You are not authorized to remove video from this playlist"
         );
     }
-    await playList.remove();
+    await playList.deleteOne();
     res.status(200).json(
-        new ApiResponse(200, "Playlist deleted successfully", playlist)
+        new ApiResponse(200, "Playlist deleted successfully", playList)
     );
 });
 
