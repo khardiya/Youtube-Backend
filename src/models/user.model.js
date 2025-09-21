@@ -54,7 +54,7 @@ userSchema.pre("save", async function (next) {
     this.password = await bcrpyt.hash(this.password, 10);
     next();
 });
-userSchema.methods.comparePassword = async function (password) {
+userSchema.methods.isPasswordCorrect = async function (password) {
     return bcrpyt.compare(password, this.password);
 };
 userSchema.methods.genrateAccessToken = function () {
