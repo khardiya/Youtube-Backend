@@ -4,12 +4,14 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+// -------------------- Toggle Video Like --------------------
 const toggleVideoLike = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    //TODO: toggle like on video
+
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid videoId");
     }
+
     const userId = req.user._id;
 
     const existingLike = await Like.findOne({
@@ -18,80 +20,87 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     });
 
     if (existingLike) {
-        // If like exists, remove it (unlike)
         await existingLike.deleteOne();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Video unliked successfully", null));
+            .json(new ApiResponse(200, null, "Video unliked successfully"));
     } else {
-        // If like doesn't exist, create it (like)
         const newLike = new Like({
-            user: userId,
+            likedBy: userId,
             video: videoId,
         });
         await newLike.save();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Video liked successfully"));
+            .json(new ApiResponse(200, newLike, "Video liked successfully"));
     }
 });
 
+// -------------------- Toggle Comment Like --------------------
 const toggleCommentLike = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
-    //TODO: toggle like on comment
+
     if (!isValidObjectId(commentId)) {
         throw new ApiError(400, "Invalid commentId");
     }
+
     const userId = req.user._id;
+
     const existingLike = await Like.findOne({
         likedBy: userId,
         comment: commentId,
     });
+
     if (existingLike) {
         await existingLike.deleteOne();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Comment unliked successfully", null));
+            .json(new ApiResponse(200, null, "Comment unliked successfully"));
     } else {
         const newLike = new Like({
-            user: userId,
+            likedBy: userId,
             comment: commentId,
         });
         await newLike.save();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Comment liked successfully"));
+            .json(new ApiResponse(200, newLike, "Comment liked successfully"));
     }
 });
 
+// -------------------- Toggle Tweet Like --------------------
 const toggleTweetLike = asyncHandler(async (req, res) => {
     const { tweetId } = req.params;
-    //TODO: toggle like on tweet
+
     if (!isValidObjectId(tweetId)) {
         throw new ApiError(400, "Invalid tweetId");
     }
+
     const userId = req.user._id;
+
     const existingLike = await Like.findOne({
         likedBy: userId,
         tweet: tweetId,
     });
+
     if (existingLike) {
         await existingLike.deleteOne();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Tweet unliked successfully", null));
+            .json(new ApiResponse(200, null, "Tweet unliked successfully"));
     } else {
         const newLike = new Like({
-            user: userId,
+            likedBy: userId,
             tweet: tweetId,
         });
         await newLike.save();
         return res
             .status(200)
-            .json(new ApiResponse(true, "Tweet liked successfully"));
+            .json(new ApiResponse(200, newLike, "Tweet liked successfully"));
     }
 });
 
+// -------------------- Get All Liked Videos --------------------
 const getLikedVideos = asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
@@ -110,11 +119,11 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         throw new ApiError(404, "No liked videos found");
     }
 
-    // Extract only videos instead of Like documents
+    // Extract only the video objects
     const videos = likedVideos.map((like) => like.video);
 
     res.status(200).json(
-        new ApiResponse(true, "Liked videos fetched successfully", videos)
+        new ApiResponse(200, videos, "Liked videos fetched successfully")
     );
 });
 
