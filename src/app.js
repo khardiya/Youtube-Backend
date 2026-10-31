@@ -7,7 +7,7 @@ const allowedOrigins = process.env.CLIENT_URL || "*";
 
 app.use(
     cors({
-        origin: allowedOrigins,
+        origin: "http://localhost:5173",
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
         credentials: true,
     })

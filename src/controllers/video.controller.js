@@ -9,43 +9,48 @@ import { extractPublicIdFromUrl } from "../utils/extractPublicIdFromUrl.js";
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-    //TODO: get all videos based on query, sort, pagination
-    const filter = { isPublished: true };
-    // Add user filter if provided
-    if (userId) {
-        filter.owner = userId;
-    }
+  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
-    // Add search filter if query is provided
-    if (query) {
-        filter.title = { $regex: query, $options: "i" }; // case-insensitive search on title
-    }
+  const filter = { isPublished: true };
 
-    // Define sorting
-    const sort = {};
+  if (userId) {
+    filter.owner = userId;
+  }
+
+  if (query) {
+    filter.title = { $regex: query, $options: "i" };
+  }
+
+  // safer sorting
+  const sort = {};
+  if (sortBy) {
     sort[sortBy] = sortType === "asc" ? 1 : -1;
+  } else {
+    sort.createdAt = -1;
+  }
 
-    // Pagination logic
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const videos = await Video.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit));
+  const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Optional: get total count for pagination info
-    const total = await Video.countDocuments(filter);
+  const videos = await Video.find(filter)
+    .sort(sort)
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate("owner", "username fullName email avatar"); // <-- IMPORTANT
 
-    res.status(200).json(
-        new ApiResponse(200, "Videos fetched successfully", {
-            videos,
-            total,
-            page: parseInt(page),
-            limit: parseInt(limit),
-            totalPages: Math.ceil(total / limit),
-        })
-    );
+  const total = await Video.countDocuments(filter);
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      videos,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit),
+    }, "Videos fetched successfully")
+  );
 });
+
+
 
 const publishAVideo = asyncHandler(async (req, res) => {
     const { title, description } = req.body;
@@ -255,6 +260,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Internal server error");
     }
 });
+
 
 export {
     getAllVideos,

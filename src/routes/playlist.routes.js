@@ -1,30 +1,39 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
-    addVideoToPlaylist,
-    createPlaylist,
-    deletePlaylist,
-    getPlaylistById,
-    getUserPlaylists,
-    removeVideoFromPlaylist,
-    updatePlaylist,
-} from "../controllers/playlist.controller.js"
-import {verifyJWT} from "../middlewares/auth.middleware.js"
+  deleteVideo,
+  getAllVideos,
+  getVideoById,
+  publishAVideo,
+  togglePublishStatus,
+  updateVideo,
+} from "../controllers/video.controller.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.use(verifyJWT); // Apply verifyJWT middleware to all routes in this file
+// Public read routes
+router.route("/").get(getAllVideos);
+router.route("/:videoId").get(getVideoById);
 
-router.route("/").post(createPlaylist)
+// Auth-only routes
+router.use(verifyJWT);
 
 router
-    .route("/:playlistId")
-    .get(getPlaylistById)
-    .patch(updatePlaylist)
-    .delete(deletePlaylist);
+  .route("/")
+  .post(
+    upload.fields([
+      { name: "videoFile", maxCount: 1 },
+      { name: "thumbnail", maxCount: 1 },
+    ]),
+    publishAVideo
+  );
 
-router.route("/add/:videoId/:playlistId").patch(addVideoToPlaylist);
-router.route("/remove/:videoId/:playlistId").patch(removeVideoFromPlaylist);
+router
+  .route("/:videoId")
+  .delete(deleteVideo)
+  .patch(upload.single("thumbnail"), updateVideo);
 
-router.route("/user/:userId").get(getUserPlaylists);
+router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
 
-export default router
+export default router;
