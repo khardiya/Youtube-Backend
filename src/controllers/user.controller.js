@@ -101,50 +101,51 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
-const userlogin = asyncHandler(async (req, res) => {
-    // get username and password from req body
-    // validation - not empty
-    // check if user exists
-    // compare password
-    // generate access token and refresh token
-    // send cookies
-    // return response
-    // console.log(req.body);
 
+const userlogin = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
 
-    const hasUsername = username && username.trim() !== "";
-    const hasEmail = email && email.trim() !== "";
-    const hasPassword = password && password.trim() !== "";
+    // Accept username or email in the username field
+    const identifier = (username || email || "").trim();
 
-    if ((!hasUsername && !hasEmail) || !hasPassword) {
-        throw new ApiError(400, "Username or email and password are required");
+    if (!identifier || !password) {
+        throw new ApiError(
+            400,
+            "Username or email and password are required"
+        );
     }
 
-    const orQuery = [];
-    if (hasEmail) orQuery.push({ email });
-    if (hasUsername) orQuery.push({ username: username.toLowerCase() });
+    const normalizedIdentifier = identifier.toLowerCase();
 
-    const user = await User.findOne({ $or: orQuery });
+    const query = normalizedIdentifier.includes("@")
+        ? { email: normalizedIdentifier }
+        : { username: normalizedIdentifier };
+
+    const user = await User.findOne(query);
+
     if (!user) {
         throw new ApiError(404, "User not found");
     }
 
     const isPasswordMatched = await user.isPasswordCorrect(password);
+
     if (!isPasswordMatched) {
         throw new ApiError(401, "Invalid credentials");
     }
 
     const { accessToken, refreshToken } =
         await genrateAccessTokenAndRefreshToken(user._id);
+
     const loginUser = await User.findById(user._id).select(
         "-password -refreshToken"
     );
 
     const options = {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
     };
+
     return res
         .status(200)
         .cookie("refreshToken", refreshToken, options)
@@ -161,6 +162,7 @@ const userlogin = asyncHandler(async (req, res) => {
             )
         );
 });
+
 
 const logoutUser = asyncHandler(async (req, res) => {
     // get user from req
