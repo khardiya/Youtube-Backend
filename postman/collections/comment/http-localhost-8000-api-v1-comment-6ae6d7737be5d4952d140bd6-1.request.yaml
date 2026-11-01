@@ -1,0 +1,6 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/comment/6ae6d7737be5d4952d140bd6
+description: ""
+url: http://localhost:8000/api/v1/comment/6ae6d7737be5d4952d140bd6
+method: GET
+order: 3000

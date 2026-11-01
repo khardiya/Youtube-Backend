@@ -1,39 +1,40 @@
+
 import { Router } from "express";
+
 import {
-  deleteVideo,
-  getAllVideos,
-  getVideoById,
-  publishAVideo,
-  togglePublishStatus,
-  updateVideo,
-} from "../controllers/video.controller.js";
+    createPlaylist,
+    getUserPlaylists,
+    getPlaylistById,
+    addVideoToPlaylist,
+    removeVideoFromPlaylist,
+    deletePlaylist,
+    updatePlaylist,
+} from "../controllers/playlist.controller.js";
+
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// Public read routes
-router.route("/").get(getAllVideos);
-router.route("/:videoId").get(getVideoById);
+// Read routes
+router.route("/user/:userId").get(getUserPlaylists);
+router.route("/:playlistId").get(getPlaylistById);
 
-// Auth-only routes
+// Authentication required for all write operations
 router.use(verifyJWT);
 
-router
-  .route("/")
-  .post(
-    upload.fields([
-      { name: "videoFile", maxCount: 1 },
-      { name: "thumbnail", maxCount: 1 },
-    ]),
-    publishAVideo
-  );
+// Create playlist
+router.route("/").post(createPlaylist);
 
+// Update and delete playlist
 router
-  .route("/:videoId")
-  .delete(deleteVideo)
-  .patch(upload.single("thumbnail"), updateVideo);
+    .route("/:playlistId")
+    .patch(updatePlaylist)
+    .delete(deletePlaylist);
 
-router.route("/toggle/publish/:videoId").patch(togglePublishStatus);
+// Add video to playlist
+router.route("/add/:videoId/:playlistId").patch(addVideoToPlaylist);
+
+// Remove video from playlist
+router.route("/remove/:videoId/:playlistId").patch(removeVideoFromPlaylist);
 
 export default router;

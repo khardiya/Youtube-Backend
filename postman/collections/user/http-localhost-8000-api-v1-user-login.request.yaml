@@ -1,0 +1,24 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/user/login
+description: ""
+url: http://localhost:8000/api/v1/user/login?username=admin&password=12345678
+method: POST
+queryParams:
+  - key: username
+    value: admin
+    disabled: false
+    description: ""
+  - key: password
+    value: "12345678"
+    disabled: false
+    description: ""
+body:
+  type: json
+  content: "{\r
+
+    \    \"username\": \"admin\",\r
+
+    \    \"password\": \"12345678\"\r
+
+    }"
+order: 1000

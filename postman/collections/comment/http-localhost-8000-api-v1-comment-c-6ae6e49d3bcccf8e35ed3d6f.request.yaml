@@ -1,0 +1,15 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/comment/c/6ae6e49d3bcccf8e35ed3d6f
+description: ""
+url: http://localhost:8000/api/v1/comment/c/6ae6e49d3bcccf8e35ed3d6f
+method: PATCH
+body:
+  type: json
+  content: "{\r
+
+    \    \"content\": \"This is my updated comment\"\r
+
+    }"
+auth:
+  type: bearer
+order: 1000

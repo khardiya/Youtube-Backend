@@ -3,12 +3,24 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 const app = express();
-const allowedOrigins = process.env.CLIENT_URL || "*";
+const allowedOrigins = (
+    process.env.CLIENT_URL || "http://localhost:5173"
+)
+    .split(",")
+    .map((origin) => origin.trim());
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: (origin, callback) => {
+            // Allow requests without an Origin header (e.g. Postman).
+            if (!origin || allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+
+            return callback(new Error("Not allowed by CORS"));
+        },
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+        allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,
     })
 );

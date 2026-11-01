@@ -149,6 +149,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     );
 });
 
+
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const { title, description } = req.body;
@@ -158,24 +159,28 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
 
     const video = await Video.findById(videoId);
+
     if (!video) {
         throw new ApiError(404, "Video not found");
     }
 
     if (video.owner.toString() !== req.user.id) {
-        throw new ApiError(403, "You are not authorized to update this video");
+        throw new ApiError(
+            403,
+            "You are not authorized to update this video"
+        );
     }
 
-    let newThumbnail;
+    let newThumbnail = null;
+    const oldThumbnailPublicId = req.file
+        ? extractPublicIdFromUrl(video.thumbnail)
+        : null;
 
-    if (req.file && req.file.path) {
-        // 1. Upload new thumbnail first
-        newThumbnail = await uploadOnCloudinary(req.file.path, {
-            folder: "thumbnails",
-            resourceType: "image",
-        });
+    // 1. Upload the new thumbnail first
+    if (req.file?.path) {
+        newThumbnail = await uploadOnCloudinary(req.file.path);
 
-        if (!newThumbnail || !newThumbnail.secure_url) {
+        if (!newThumbnail?.secure_url) {
             throw new ApiError(
                 500,
                 "Error uploading new thumbnail to Cloudinary"
@@ -183,83 +188,140 @@ const updateVideo = asyncHandler(async (req, res) => {
         }
     }
 
-    // 2. If new thumbnail uploaded, delete the old one
-    if (newThumbnail && video.thumbnail) {
-        const publicId = extractPublicIdFromUrl(video.thumbnail);
-        if (publicId) {
-            try {
-                await deleteFromCloudinary(publicId);
-            } catch (error) {
-                console.error("Error deleting old thumbnail:", error);
-                // optionally log, but don't block the update
-            }
-        }
-    }
-
-    // 3. Update video fields
+    // 2. Update video fields
     video.title = title !== undefined ? title : video.title;
     video.description =
         description !== undefined ? description : video.description;
-    video.thumbnail = newThumbnail ? newThumbnail.secure_url : video.thumbnail;
 
+    if (newThumbnail) {
+        video.thumbnail = newThumbnail.secure_url;
+    }
+
+    // 3. Save changes to MongoDB
     const updatedVideo = await video.save();
 
-    res.status(200).json(
-        new ApiResponse(200, "Video updated successfully", updatedVideo)
+    // 4. Delete old thumbnail only after successful database save
+    if (newThumbnail && oldThumbnailPublicId) {
+        const deleteResult = await deleteFromCloudinary(
+            oldThumbnailPublicId,
+            "image"
+        );
+
+        if (
+            !deleteResult ||
+            !["ok", "not found"].includes(deleteResult.result)
+        ) {
+            console.warn(
+                "Old thumbnail cleanup may have failed:",
+                oldThumbnailPublicId
+            );
+        }
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedVideo,
+            "Video updated successfully"
+        )
     );
 });
+
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
-    //TODO: delete video
+
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video id");
     }
+
     const video = await Video.findById(videoId);
+
     if (!video) {
         throw new ApiError(404, "Video not found");
     }
+
     if (video.owner.toString() !== req.user.id) {
-        throw new ApiError(403, "You are not authorized to delete this video");
+        throw new ApiError(
+            403,
+            "You are not authorized to delete this video"
+        );
     }
-    
+
+    // Extract Cloudinary public IDs before deleting the database record
+    const videoPublicId = extractPublicIdFromUrl(video.videoFile);
+    const thumbnailPublicId = extractPublicIdFromUrl(video.thumbnail);
+
+    // Delete the database record first
     await video.deleteOne();
-    res.status(200).json(
-        new ApiResponse(200, "Video deleted successfully", null)
+
+    // Clean up Cloudinary assets after successful database deletion
+    const [videoResult, thumbnailResult] = await Promise.all([
+        videoPublicId
+            ? deleteFromCloudinary(videoPublicId, "video")
+            : Promise.resolve(null),
+
+        thumbnailPublicId
+            ? deleteFromCloudinary(thumbnailPublicId, "image")
+            : Promise.resolve(null),
+    ]);
+
+    // Log cleanup failures without reversing the successful database deletion
+    if (!videoResult || !["ok", "not found"].includes(videoResult.result)) {
+        console.warn("Video Cloudinary cleanup may have failed:", videoPublicId);
+    }
+
+    if (
+        !thumbnailResult ||
+        !["ok", "not found"].includes(thumbnailResult.result)
+    ) {
+        console.warn(
+            "Thumbnail Cloudinary cleanup may have failed:",
+            thumbnailPublicId
+        );
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "Video deleted successfully")
     );
 });
 
+
 const togglePublishStatus = asyncHandler(async (req, res) => {
-    try {
-        const { videoId } = req.params;
-        if (!isValidObjectId(videoId)) {
-            throw new ApiError(400, "Invalid video id");
-        }
-        const video = await Video.findById(videoId);
-        if (!video) {
-            throw new ApiError(404, "Video not found");
-        }
-        if (video.owner.toString() !== req.user.id) {
-            throw new ApiError(
-                403,
-                "You are not authorized to update this video"
-            );
-        }
-        video.isPublished = !video.isPublished;
-        const updatedVideo = await video.save();
-        res.status(200).json(
-            new ApiResponse(
-                200,
-                `Video ${
-                    updatedVideo.isPublished ? "published" : "unpublished"
-                } successfully`,
-                updatedVideo
-            )
-        );
-    } catch (error) {
-        throw new ApiError(500, "Internal server error");
+    const { videoId } = req.params;
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video id");
     }
+
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    if (video.owner.toString() !== req.user.id) {
+        throw new ApiError(
+            403,
+            "You are not authorized to update this video"
+        );
+    }
+
+    video.isPublished = !video.isPublished;
+
+    const updatedVideo = await video.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedVideo,
+            `Video ${
+                updatedVideo.isPublished ? "published" : "unpublished"
+            } successfully`
+        )
+    );
 });
+
 
 
 export {

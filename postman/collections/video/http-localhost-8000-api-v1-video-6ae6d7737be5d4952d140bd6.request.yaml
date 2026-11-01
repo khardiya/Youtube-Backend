@@ -1,0 +1,17 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/video/6ae6d7737be5d4952d140bd6
+description: ""
+url: http://localhost:8000/api/v1/video/6ae6d7737be5d4952d140bd6
+method: PATCH
+body:
+  type: formdata
+  content:
+    - type: file
+      key: thumbnail
+      src:
+        - /C:/Users/khard/Downloads/sample-hut-400x300.png
+      description: ""
+      disabled: false
+auth:
+  type: bearer
+order: 4000

@@ -1,14 +1,43 @@
-function extractPublicIdFromUrl(url) {
+const extractPublicIdFromUrl = (url) => {
     try {
-        const parts = url.split("/");
-        const index = parts.findIndex(part => part === "thumbnails");
-        if (index !== -1 && parts.length > index + 1) {
-            const filename = parts[index + 1]; // get file after thumbnails
-            return `thumbnails/${filename.replace(/\.[^/.]+$/, "")}`; // thumbnails/abc123
+        if (!url || typeof url !== "string") {
+            return null;
         }
-        return null;
+
+        const pathname = new URL(url).pathname;
+        const parts = pathname.split("/");
+
+        const uploadIndex = parts.indexOf("upload");
+
+        if (uploadIndex === -1) {
+            return null;
+        }
+
+        // Everything after /upload/
+        let publicIdParts = parts.slice(uploadIndex + 1);
+
+        // Remove Cloudinary version segment, e.g. v1234567890
+        if (
+            publicIdParts.length > 0 &&
+            /^v\d+$/.test(publicIdParts[0])
+        ) {
+            publicIdParts = publicIdParts.slice(1);
+        }
+
+        if (publicIdParts.length === 0) {
+            return null;
+        }
+
+        // Join folder and filename
+        const publicId = publicIdParts.join("/");
+
+        // Remove file extension
+        return publicId.replace(/\.[^/.]+$/, "");
+
     } catch (error) {
+        console.error("Public ID extraction failed:", error);
         return null;
     }
-}
+};
+
 export { extractPublicIdFromUrl };

@@ -1,0 +1,6 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/comment/c/6ae6e49d3bcccf8e35ed3d6f
+description: ""
+url: http://localhost:8000/api/v1/comment/c/6ae6e49d3bcccf8e35ed3d6f
+method: DELETE
+order: 4000

@@ -101,6 +101,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
 });
 
 // -------------------- Get All Liked Videos --------------------
+
 const getLikedVideos = asyncHandler(async (req, res) => {
     const userId = req.user._id;
 
@@ -115,16 +116,19 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         },
     });
 
-    if (likedVideos.length === 0) {
-        throw new ApiError(404, "No liked videos found");
-    }
+    // Extract valid video objects only
+    const videos = likedVideos
+        .map((like) => like.video)
+        .filter((video) => video !== null);
 
-    // Extract only the video objects
-    const videos = likedVideos.map((like) => like.video);
-
-    res.status(200).json(
-        new ApiResponse(200, videos, "Liked videos fetched successfully")
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            videos,
+            "Liked videos fetched successfully"
+        )
     );
 });
+
 
 export { toggleCommentLike, toggleTweetLike, toggleVideoLike, getLikedVideos };

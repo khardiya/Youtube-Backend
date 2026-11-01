@@ -1,0 +1,6 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/video/6ae6d6907be5d4952d140b27
+description: ""
+url: http://localhost:8000/api/v1/video/6ae6d6907be5d4952d140b27
+method: DELETE
+order: 3000

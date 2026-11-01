@@ -1,0 +1,6 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/playlist/6ae6de55511ef22b9216ea01
+description: ""
+url: http://localhost:8000/api/v1/playlist/6ae6de55511ef22b9216ea01
+method: GET
+order: 3000

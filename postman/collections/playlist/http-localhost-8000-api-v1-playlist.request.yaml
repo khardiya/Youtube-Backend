@@ -1,0 +1,15 @@
+$kind: http-request
+name: http://localhost:8000/api/v1/playlist
+description: ""
+url: http://localhost:8000/api/v1/playlist
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\":\"playlist1\",\r
+
+    \    \"description\":\"my playlist1\"\r
+
+    }"
+order: 1000
