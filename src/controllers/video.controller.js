@@ -9,50 +9,50 @@ import { extractPublicIdFromUrl } from "../utils/extractPublicIdFromUrl.js";
 import { deleteFromCloudinary } from "../utils/deleteFromCloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
-  const filter = { isPublished: true };
+    const filter = { isPublished: true };
 
-  if (userId) {
-    filter.owner = userId;
-  }
+    if (userId) {
+        filter.owner = userId;
+    }
 
-  if (query) {
-    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (query) {
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    filter.$or = [
-        { title: { $regex: escapedQuery, $options: "i" } },
-        { description: { $regex: escapedQuery, $options: "i" } },
-    ];
-}
+        filter.$or = [
+            { title: { $regex: escapedQuery, $options: "i" } },
+            { description: { $regex: escapedQuery, $options: "i" } },
+        ];
+    }
 
-  // safer sorting
-  const sort = {};
-  if (sortBy) {
-    sort[sortBy] = sortType === "asc" ? 1 : -1;
-  } else {
-    sort.createdAt = -1;
-  }
+    // safer sorting
+    const sort = {};
+    if (sortBy) {
+        sort[sortBy] = sortType === "asc" ? 1 : -1;
+    } else {
+        sort.createdAt = -1;
+    }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  const videos = await Video.find(filter)
-    .sort(sort)
-    .skip(skip)
-    .limit(parseInt(limit))
-    .populate("owner", "username fullName email avatar"); // <-- IMPORTANT
+    const videos = await Video.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .populate("owner", "username fullName email avatar"); // <-- IMPORTANT
 
-  const total = await Video.countDocuments(filter);
+    const total = await Video.countDocuments(filter);
 
-  res.status(200).json(
-    new ApiResponse(200, {
-      videos,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / limit),
-    }, "Videos fetched successfully")
-  );
+    res.status(200).json(
+        new ApiResponse(200, {
+            videos,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit),
+        }, "Videos fetched successfully")
+    );
 });
 
 
@@ -113,9 +113,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if (!newVideo) {
         throw new ApiError(500, "Error creating video");
     }
-    res.status(201).json(
-        new ApiResponse(201, "Video published successfully", newVideo)
-    );
+    new ApiResponse(201, newVideo, "Video published successfully")
 });
 
 
@@ -128,8 +126,11 @@ const getVideoById = asyncHandler(async (req, res) => {
     }
 
     // Find the video and increase its view count by 1
-    const video = await Video.findByIdAndUpdate(
-        videoId,
+    const video = await Video.findOneAndUpdate(
+        {
+            _id: videoId,
+            isPublished: true
+        },
         {
             $inc: { views: 1 }
         },
@@ -147,8 +148,8 @@ const getVideoById = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(
             200,
-            "Video fetched successfully",
-            video
+            video,
+            "Video fetched successfully"
         )
     );
 });
@@ -320,8 +321,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         new ApiResponse(
             200,
             updatedVideo,
-            `Video ${
-                updatedVideo.isPublished ? "published" : "unpublished"
+            `Video ${updatedVideo.isPublished ? "published" : "unpublished"
             } successfully`
         )
     );
