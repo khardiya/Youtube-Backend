@@ -22,21 +22,198 @@ const createTweet = asyncHandler(async (req, res) => {
 });
 
 const getUserTweets = asyncHandler(async (req, res) => {
-    // TODO: get user tweets
     const userId = req.params.userId;
+
     if (!isValidObjectId(userId)) {
         throw new ApiError(400, "Invalid user id");
     }
+
     const user = await User.findById(userId);
+
     if (!user) {
         throw new ApiError(404, "User not found");
     }
-    const tweets = await Tweet.find({ owner: userId });
-    res.status(200).json(
-        new ApiResponse(200, tweets, "User tweets fetched successfully")
+
+    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
+
+    const tweets = await Tweet.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(userId),
+            },
+        },
+        {
+            $lookup: {
+                from: "likes",
+                let: { tweetId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $eq: ["$tweet", "$$tweetId"],
+                            },
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            count: { $sum: 1 },
+                            likedByCurrentUser: {
+                                $max: {
+                                    $cond: [
+                                        {
+                                            $eq: [
+                                                "$likedBy",
+                                                currentUserId,
+                                            ],
+                                        },
+                                        1,
+                                        0,
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                ],
+                as: "likeStats",
+            },
+        },
+        {
+            $addFields: {
+                likesCount: {
+                    $ifNull: [
+                        { $arrayElemAt: ["$likeStats.count", 0] },
+                        0,
+                    ],
+                },
+                isLiked: {
+                    $eq: [
+                        {
+                            $ifNull: [
+                                {
+                                    $arrayElemAt: [
+                                        "$likeStats.likedByCurrentUser",
+                                        0,
+                                    ],
+                                },
+                                0,
+                            ],
+                        },
+                        1,
+                    ],
+                },
+            },
+        },
+        {
+            $project: {
+                content: 1,
+                owner: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                likesCount: 1,
+                isLiked: 1,
+            },
+        },
+        {
+            $sort: { createdAt: -1 },
+        },
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            tweets,
+            "User tweets fetched successfully"
+        )
     );
 });
+const getAllTweets = asyncHandler(async (req, res) => {
+    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
 
+    const tweets = await Tweet.aggregate([
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner"
+            }
+        },
+        {
+            $unwind: "$owner"
+        },
+        {
+            $lookup: {
+                from: "likes",
+                let: { tweetId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: { $eq: ["$tweet", "$$tweetId"] }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            count: { $sum: 1 },
+                            likedByCurrentUser: {
+                                $max: {
+                                    $cond: [
+                                        { $eq: ["$likedBy", currentUserId] },
+                                        1,
+                                        0
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                as: "likeStats"
+            }
+        },
+        {
+            $addFields: {
+                likesCount: {
+                    $ifNull: [
+                        { $arrayElemAt: ["$likeStats.count", 0] },
+                        0
+                    ]
+                },
+                isLiked: {
+                    $eq: [
+                        {
+                            $ifNull: [
+                                { $arrayElemAt: ["$likeStats.likedByCurrentUser", 0] },
+                                0
+                            ]
+                        },
+                        1
+                    ]
+                }
+            }
+        },
+        {
+            $project: {
+                content: 1,
+                owner: {
+                    _id: "$owner._id",
+                    fullName: "$owner.fullName",
+                    username: "$owner.username",
+                    avatar: "$owner.avatar"
+                },
+                createdAt: 1,
+                updatedAt: 1,
+                likesCount: 1,
+                isLiked: 1
+            }
+        },
+        { $sort: { createdAt: -1 } }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(200, tweets, "Community tweets fetched successfully")
+    );
+});
 const updateTweet = asyncHandler(async (req, res) => {
     //TODO: update tweet
     const tweetId = req.params.tweetId;
@@ -82,4 +259,4 @@ const deleteTweet = asyncHandler(async (req, res) => {
     );
 });
 
-export { createTweet, getUserTweets, updateTweet, deleteTweet };
+export { createTweet, getUserTweets, updateTweet, deleteTweet,getAllTweets };

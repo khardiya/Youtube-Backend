@@ -5,7 +5,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Video } from "../models/video.model.js";
 
-
 const getVideoComments = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     const page = Number.parseInt(req.query.page, 10) || 1;
@@ -22,15 +21,14 @@ const getVideoComments = asyncHandler(async (req, res) => {
         );
     }
 
-    const videoExists = await mongoose.model("Video").exists({
-        _id: videoId,
-    });
+    const videoExists = await Video.exists({ _id: videoId });
 
     if (!videoExists) {
         throw new ApiError(404, "Video not found");
     }
 
     const skip = (page - 1) * limit;
+    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
 
     const [comments, totalComments] = await Promise.all([
         Comment.aggregate([
@@ -47,8 +45,68 @@ const getVideoComments = asyncHandler(async (req, res) => {
                     as: "owner",
                 },
             },
+            { $unwind: "$owner" },
             {
-                $unwind: "$owner",
+                $lookup: {
+                    from: "likes",
+                    let: { commentId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $eq: ["$comment", "$$commentId"],
+                                },
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 },
+                                likedByCurrentUser: {
+                                    $max: {
+                                        $cond: [
+                                            {
+                                                $eq: [
+                                                    "$likedBy",
+                                                    currentUserId,
+                                                ],
+                                            },
+                                            1,
+                                            0,
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                    as: "likeStats",
+                },
+            },
+            {
+                $addFields: {
+                    likesCount: {
+                        $ifNull: [
+                            { $arrayElemAt: ["$likeStats.count", 0] },
+                            0,
+                        ],
+                    },
+                    isLiked: {
+                        $eq: [
+                            {
+                                $ifNull: [
+                                    {
+                                        $arrayElemAt: [
+                                            "$likeStats.likedByCurrentUser",
+                                            0,
+                                        ],
+                                    },
+                                    0,
+                                ],
+                            },
+                            1,
+                        ],
+                    },
+                },
             },
             {
                 $project: {
@@ -62,6 +120,8 @@ const getVideoComments = asyncHandler(async (req, res) => {
                     },
                     createdAt: 1,
                     updatedAt: 1,
+                    likesCount: 1,
+                    isLiked: 1,
                 },
             },
             { $sort: { createdAt: -1 } },
@@ -87,7 +147,6 @@ const getVideoComments = asyncHandler(async (req, res) => {
         )
     );
 });
-
 
 const addComment = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
@@ -117,7 +176,6 @@ const addComment = asyncHandler(async (req, res) => {
         new ApiResponse(201, comment, "Comment added successfully")
     );
 });
-
 
 const updateComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
@@ -162,7 +220,6 @@ const updateComment = asyncHandler(async (req, res) => {
     );
 });
 
-
 const deleteComment = asyncHandler(async (req, res) => {
     const { commentId } = req.params;
 
@@ -190,4 +247,9 @@ const deleteComment = asyncHandler(async (req, res) => {
     );
 });
 
-export { getVideoComments, addComment, updateComment, deleteComment };
+export {
+    getVideoComments,
+    addComment,
+    updateComment,
+    deleteComment,
+};

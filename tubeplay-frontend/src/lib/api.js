@@ -1,9 +1,8 @@
 
 import axios from "axios";
 
-const baseURL = `${
-    import.meta.env.VITE_API_URL || "http://localhost:8000"
-}/api/v1`;
+const baseURL = `${import.meta.env.VITE_API_URL || "http://localhost:8000"
+    }/api/v1`;
 
 export const api = axios.create({
     baseURL,
@@ -99,7 +98,7 @@ export const messageOf = (err) =>
 // API endpoints
 export const endpoints = {
     currentUser: () => api.get("/user/current-user"),
-      searchUsers: (query) =>
+    searchUsers: (query) =>
         api.get("/user/search", { params: { query } }),
 
     refreshSession: () => api.post("/user/refresh-token", {}),
@@ -112,6 +111,16 @@ export const endpoints = {
 
     addComment: (id, content) =>
         api.post(`/comment/${id}`, { content }),
+
+    updateComment: (commentId, content) =>
+        api.patch(`/comment/c/${commentId}`, { content }),
+
+    deleteComment: (commentId) =>
+        api.delete(`/comment/c/${commentId}`),
+
+    // Like / unlike a comment
+    toggleCommentLike: (commentId) =>
+        api.post(`/likes/toggle/c/${commentId}`),
 
     toggleVideoLike: (id) => api.post(`/likes/toggle/v/${id}`),
     likedVideos: () => api.get("/likes/videos"),
@@ -141,6 +150,8 @@ export const endpoints = {
         api.patch(`/playlist/remove/${videoId}/${playlistId}`),
 
     tweets: (userId) => api.get(`/tweet/user/${userId}`),
+    allTweets: () => api.get("/tweet"),
+
     createTweet: (content) => api.post("/tweet/", { content }),
     updateTweet: (id, content) =>
         api.patch(`/tweet/${id}`, { content }),
@@ -149,7 +160,6 @@ export const endpoints = {
     toggleTweetLike: (id) => api.post(`/likes/toggle/t/${id}`),
     toggleSubscribe: (id) =>
         api.post(`/subscription/toggle/${id}`),
-
     subscribers: (id) =>
         api.get(`/subscription/subscribers/${id}`),
 

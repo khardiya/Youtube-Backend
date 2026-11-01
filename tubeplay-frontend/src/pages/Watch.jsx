@@ -24,6 +24,12 @@ export default function Watch() {
     const [related, setRelated] = useState([]);
     const [text, setText] = useState("");
     const [error, setError] = useState("");
+    const [shareMessage, setShareMessage] = useState("");
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editCommentText, setEditCommentText] = useState("");
+    const [commentActionLoading, setCommentActionLoading] = useState(false);
+    const [commentLikeLoading, setCommentLikeLoading] = useState({});
+
 
     const [liked, setLiked] = useState(false);
     const [likeLoading, setLikeLoading] = useState(true);
@@ -57,8 +63,8 @@ export default function Watch() {
 
                 setVideo(
                     typeof d === "string" &&
-                    r.data?.message &&
-                    typeof r.data.message === "object"
+                        r.data?.message &&
+                        typeof r.data.message === "object"
                         ? r.data.message
                         : d
                 );
@@ -280,6 +286,37 @@ export default function Watch() {
         }
     };
 
+    // Copy the current video URL and show a visible result.
+    const shareVideo = async () => {
+        const url = window.location.href;
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                // Fallback for browsers/contexts where Clipboard API is unavailable.
+                const textarea = document.createElement("textarea");
+                textarea.value = url;
+                textarea.setAttribute("readonly", "");
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                const copied = document.execCommand("copy");
+                document.body.removeChild(textarea);
+
+                if (!copied) {
+                    throw new Error("Browser did not allow copying the link.");
+                }
+            }
+
+            setShareMessage("Video link copied to clipboard.");
+        } catch (e) {
+            setShareMessage("Could not copy automatically. Copy this link: " + url);
+        }
+    };
+
     // Add comment
     const add = async (e) => {
         e.preventDefault();
@@ -297,6 +334,84 @@ export default function Watch() {
             setError(messageOf(e));
         }
     };
+    // Like / Unlike a comment
+    const toggleCommentLike = async (commentId) => {
+        if (!currentUserId || commentLikeLoading[commentId]) return;
+
+        setCommentLikeLoading((previous) => ({
+            ...previous,
+            [commentId]: true,
+        }));
+
+        try {
+            await endpoints.toggleCommentLike(commentId);
+
+            const response = await endpoints.comments(id);
+            setComments(extractComments(response));
+        } catch (e) {
+            setError(messageOf(e));
+        } finally {
+            setCommentLikeLoading((previous) => ({
+                ...previous,
+                [commentId]: false,
+            }));
+        }
+    };
+    // Start editing one of the current user's comments.
+    const startEditComment = (comment) => {
+        setEditingCommentId(comment._id);
+        setEditCommentText(comment.content || "");
+    };
+
+    // Save an edited comment.
+    const saveCommentEdit = async (e) => {
+        e.preventDefault();
+        const content = editCommentText.trim();
+
+        if (!content || !editingCommentId || commentActionLoading) return;
+
+        setCommentActionLoading(true);
+        setError("");
+
+        try {
+            await endpoints.updateComment(editingCommentId, content);
+            const response = await endpoints.comments(id);
+            setComments(extractComments(response));
+            setEditingCommentId(null);
+            setEditCommentText("");
+        } catch (e) {
+            setError(messageOf(e));
+        } finally {
+            setCommentActionLoading(false);
+        }
+    };
+
+    // Delete one of the current user's comments.
+    const removeComment = async (commentId) => {
+        if (commentActionLoading) return;
+        if (!window.confirm("Delete this comment?")) return;
+
+        setCommentActionLoading(true);
+        setError("");
+
+        try {
+            await endpoints.deleteComment(commentId);
+            setComments((previous) =>
+                previous.filter((comment) => comment._id !== commentId)
+            );
+
+            if (editingCommentId === commentId) {
+                setEditingCommentId(null);
+                setEditCommentText("");
+            }
+        } catch (e) {
+            setError(messageOf(e));
+        } finally {
+            setCommentActionLoading(false);
+        }
+    };
+
+    
 
     // Like / Unlike video
     const like = async () => {
@@ -407,9 +522,8 @@ export default function Watch() {
                         <button
                             onClick={like}
                             disabled={likeLoading}
-                            className={`btn-secondary ${
-                                liked ? "text-brand-500" : ""
-                            }`}
+                            className={`btn-secondary ${liked ? "text-brand-500" : ""
+                                }`}
                         >
                             <ThumbsUp size={16} />
                             {likeLoading
@@ -435,17 +549,19 @@ export default function Watch() {
 
                         {/* Share button */}
                         <button
-                            onClick={() =>
-                                navigator.clipboard?.writeText(
-                                    window.location.href
-                                )
-                            }
+                            onClick={shareVideo}
                             className="btn-secondary"
                         >
                             <Share2 size={16} />
                             Share
                         </button>
                     </div>
+
+                    {shareMessage && (
+                        <p className="mt-2 break-all text-sm text-muted" role="status">
+                            {shareMessage}
+                        </p>
+                    )}
                 </div>
 
                 {/* Playlist selection */}
@@ -551,33 +667,123 @@ export default function Watch() {
 
                     {/* Comments list */}
                     <div className="mt-6 space-y-5">
+                        {comments.map((c) => {
+                            const commentOwnerId =
+                                c.owner?._id || c.owner?.id || c.owner;
+                            const isOwnComment =
+                                currentUserId &&
+                                String(commentOwnerId) === String(currentUserId);
+                            const isEditing = editingCommentId === c._id;
 
-                        {comments.map((c) => (
-                            <div key={c._id} className="flex gap-3">
+                            return (
+                                <div key={c._id} className="flex gap-3">
+                                    <img
+                                        src={
+                                            c.owner?.avatar ||
+                                            "https://api.dicebear.com/7.x/initials/svg?seed=User"
+                                        }
+                                        className="h-9 w-9 rounded-full"
+                                        alt="User avatar"
+                                    />
 
-                                <img
-                                    src={
-                                        c.owner?.avatar ||
-                                        "https://api.dicebear.com/7.x/initials/svg?seed=User"
-                                    }
-                                    className="h-9 w-9 rounded-full"
-                                    alt="User avatar"
-                                />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold">
+                                            {c.owner?.fullName ||
+                                                c.owner?.username ||
+                                                "Viewer"}
+                                        </p>
 
-                                <div>
-                                    <p className="text-xs font-bold">
-                                        {c.owner?.fullName ||
-                                            c.owner?.username ||
-                                            "Viewer"}
-                                    </p>
+                                        {isEditing ? (
+                                            <form
+                                                onSubmit={saveCommentEdit}
+                                                className="mt-2 space-y-2"
+                                            >
+                                                <textarea
+                                                    value={editCommentText}
+                                                    onChange={(e) =>
+                                                        setEditCommentText(e.target.value)
+                                                    }
+                                                    className="field min-h-20 w-full"
+                                                    maxLength={2000}
+                                                    autoFocus
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        type="submit"
+                                                        disabled={
+                                                            !editCommentText.trim() ||
+                                                            commentActionLoading
+                                                        }
+                                                        className="btn-primary px-3 py-1.5 text-sm"
+                                                    >
+                                                        {commentActionLoading ? "Saving..." : "Save"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingCommentId(null);
+                                                            setEditCommentText("");
+                                                        }}
+                                                        disabled={commentActionLoading}
+                                                        className="btn-secondary px-3 py-1.5 text-sm"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        ) : (
+                                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">
+                                                {c.content}
+                                            </p>
+                                        )}
 
-                                    <p className="mt-1 text-sm text-muted">
-                                        {c.content}
-                                    </p>
+                                        <div className="mt-2 flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleCommentLike(c._id)}
+                                                disabled={
+                                                    !currentUserId ||
+                                                    Boolean(commentLikeLoading[c._id])
+                                                }
+                                                aria-pressed={Boolean(c.isLiked)}
+                                                className={`inline-flex items-center gap-1 text-xs font-semibold transition ${c.isLiked
+                                                        ? "text-brand-500"
+                                                        : "text-muted hover:text-white"
+                                                    }`}
+                                            >
+                                                <ThumbsUp size={14} />
+                                                {commentLikeLoading[c._id]
+                                                    ? "Updating..."
+                                                    : c.isLiked
+                                                        ? "Liked"
+                                                        : "Like"}
+                                                <span>({c.likesCount ?? 0})</span>
+                                            </button>
+                                        </div>
+
+                                        {isOwnComment && !isEditing && (
+                                            <div className="mt-2 flex gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEditComment(c)}
+                                                    className="text-xs font-semibold text-muted hover:text-white"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeComment(c._id)}
+                                                    disabled={commentActionLoading}
+                                                    className="text-xs font-semibold text-red-400 hover:text-red-300"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {!comments.length && (
                             <Empty
@@ -585,7 +791,6 @@ export default function Watch() {
                                 description="Be the first to leave a comment."
                             />
                         )}
-
                     </div>
                 </div>
 
