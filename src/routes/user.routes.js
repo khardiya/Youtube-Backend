@@ -12,8 +12,10 @@ import {
     updateUserCoverImage,
     userlogin,
 } from "../controllers/user.controller.js";
+import { searchUsers } from "../controllers/search.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+
 
 const router = Router();
 // register and login routes (public)
@@ -40,5 +42,6 @@ router
     .patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile);
 router.route("/history").get(verifyJWT, getWatchHistory);
-
+router.route("/search").get(verifyJWT, searchUsers);
+router.route("/search").get(verifyJWT, searchUsers);
 export default router;

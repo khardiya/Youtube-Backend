@@ -99,12 +99,14 @@ export const messageOf = (err) =>
 // API endpoints
 export const endpoints = {
     currentUser: () => api.get("/user/current-user"),
+      searchUsers: (query) =>
+        api.get("/user/search", { params: { query } }),
 
     refreshSession: () => api.post("/user/refresh-token", {}),
 
     videos: (params = {}) => api.get("/video/", { params }),
     video: (id) => api.get(`/video/${id}`),
-
+    addToHistory: (id) => api.post(`/video/${id}/history`),
     comments: (id, params = {}) =>
         api.get(`/comment/${id}`, { params }),
 

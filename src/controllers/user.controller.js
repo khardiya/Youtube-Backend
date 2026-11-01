@@ -439,22 +439,22 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 
 
+
 const getUserChannelProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
 
     if (!username?.trim()) {
-        throw new ApiError(400, "username not found");
+        throw new ApiError(400, "Username not found");
     }
 
     const channel = await User.aggregate([
         {
             $match: {
-                username: username?.toLowerCase(),
+                username: username.toLowerCase(),
             },
         },
         {
             $lookup: {
-                // left outer join and get all subscribers for this channel
                 from: "subscriptions",
                 localField: "_id",
                 foreignField: "channel",
@@ -463,27 +463,47 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
-                // get all channels to which this user has subscribed
                 from: "subscriptions",
                 localField: "_id",
                 foreignField: "subscriber",
-                as: "subscriberedTo",
+                as: "subscribedTo",
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                let: { channelId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$owner", "$$channelId"] },
+                                    { $eq: ["$isPublished", true] },
+                                ],
+                            },
+                        },
+                    },
+                    { $sort: { createdAt: -1 } },
+                ],
+                as: "videos",
             },
         },
         {
             $addFields: {
-                subsrcberCount: {
+                subscriberCount: {
                     $size: "$subscribers",
                 },
-                channelsSubsrcberedCount: {
-                    $size: "$subscriberedTo",
+                channelsSubscribedCount: {
+                    $size: "$subscribedTo",
                 },
-                isSubsrcbed: {
-                    $cond: {
-                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-                        then: true,
-                        else: false,
-                    },
+                isSubscribed: {
+                    $in: [
+                        req.user?._id
+                            ? new mongoose.Types.ObjectId(req.user._id)
+                            : null,
+                        "$subscribers.subscriber",
+                    ],
                 },
             },
         },
@@ -491,29 +511,29 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             $project: {
                 username: 1,
                 fullName: 1,
-                email: 1,
                 avatar: 1,
                 coverImage: 1,
-                subsrcberCount: 1,
-                channelsSubsrcberedCount: 1,
-                isSubsrcbed: 1,
+                subscriberCount: 1,
+                channelsSubscribedCount: 1,
+                isSubscribed: 1,
+                videos: 1,
             },
         },
     ]);
-    if (!channel || channel.length === 0) {
+
+    if (!channel.length) {
         throw new ApiError(404, "Channel not found");
     }
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                channel[0],
-                "Channel details fetched successfully"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            channel[0],
+            "Channel details fetched successfully"
+        )
+    );
 });
+
 
 const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([

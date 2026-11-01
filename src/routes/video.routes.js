@@ -1,7 +1,7 @@
-
 import { Router } from "express";
 
 import {
+    addVideoToWatchHistory,
     deleteVideo,
     getAllVideos,
     getVideoById,
@@ -13,13 +13,18 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
+// 1. Initialize router first
 const router = Router();
 
-// Public routes — no login required
+// 2. Public routes
 router.route("/").get(getAllVideos);
 router.route("/:videoId").get(getVideoById);
 
-// Protected routes — login required
+// 3. Protected history route
+router.route("/:videoId/history")
+    .post(verifyJWT, addVideoToWatchHistory);
+
+// 4. Protect remaining routes
 router.use(verifyJWT);
 
 router.route("/").post(

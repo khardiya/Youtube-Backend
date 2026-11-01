@@ -48,9 +48,10 @@ const getChannelStats = asyncHandler(async (req, res) => {
     );
 });
 
+
 const getChannelVideos = asyncHandler(async (req, res) => {
-    // TODO: Get all the videos uploaded by the channel
     const userId = req.user._id;
+
     const videos = await Video.aggregate([
         {
             $match: {
@@ -74,14 +75,23 @@ const getChannelVideos = asyncHandler(async (req, res) => {
                 ],
             },
         },
-        { $unwind: "$owner" },
+        {
+            $unwind: "$owner",
+        },
     ]);
-    if (!videos || videos.length === 0) {
-        throw new ApiError(404, "No videos found for this channel");
-    }
-    res.status(200).json(
-        new ApiResponse(200, videos, "Videos fetched successfully")
+
+    // Empty array is a valid response.
+    // Do not throw 404 when the channel has no videos.
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            videos,
+            videos.length > 0
+                ? "Videos fetched successfully"
+                : "No videos uploaded yet"
+        )
     );
 });
+
 
 export { getChannelStats, getChannelVideos };

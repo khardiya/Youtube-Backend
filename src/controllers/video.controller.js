@@ -18,8 +18,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
   }
 
   if (query) {
-    filter.title = { $regex: query, $options: "i" };
-  }
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    filter.$or = [
+        { title: { $regex: escapedQuery, $options: "i" } },
+        { description: { $regex: escapedQuery, $options: "i" } },
+    ];
+}
 
   // safer sorting
   const sort = {};
@@ -322,6 +327,45 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     );
 });
 
+const addVideoToWatchHistory = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video id");
+    }
+
+    const videoExists = await Video.exists({ _id: videoId });
+
+    if (!videoExists) {
+        throw new ApiError(404, "Video not found");
+    }
+
+    // Remove existing occurrence so the video moves to the top.
+    await User.updateOne(
+        { _id: req.user._id },
+        { $pull: { watchHistory: videoId } }
+    );
+
+    // Add video to the beginning; keep maximum 100 entries.
+    await User.updateOne(
+        { _id: req.user._id },
+        {
+            $push: {
+                watchHistory: {
+                    $each: [videoId],
+                    $position: 0,
+                    $slice: 100,
+                },
+            },
+        }
+    );
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Watch history updated successfully")
+    );
+});
+
+
 
 
 export {
@@ -331,4 +375,5 @@ export {
     updateVideo,
     deleteVideo,
     togglePublishStatus,
+    addVideoToWatchHistory
 };
